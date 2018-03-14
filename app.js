@@ -1,10 +1,12 @@
 /**
  * Module dependencies.
  */
+const _ = require('lodash');
 const express = require('express');
 const compression = require('compression');
 const session = require('express-session');
 const bodyParser = require('body-parser');
+const getRawBody = require('raw-body');
 const logger = require('morgan');
 const chalk = require('chalk');
 const errorHandler = require('errorhandler');
@@ -18,7 +20,9 @@ const passport = require('passport');
 const expressValidator = require('express-validator');
 const expressStatusMonitor = require('express-status-monitor');
 const sass = require('node-sass-middleware');
+const axios = require('axios');
 const multer = require('multer');
+const crypto = require('crypto');
 
 const upload = multer({ dest: path.join(__dirname, 'uploads') });
 
@@ -88,7 +92,10 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(flash());
+
+var csrfExclude = ['/shopify'];
 app.use((req, res, next) => {
+	if (_.includes(csrfExclude, req.path)) return next();
 	if (req.path === '/api/upload') {
 		next();
 	} else {
@@ -123,6 +130,7 @@ app.use(
 /**
  * Primary app routes.
  */
+
 app.get('/', homeController.index);
 app.get('/login', userController.getLogin);
 app.post('/login', userController.postLogin);
@@ -135,6 +143,114 @@ app.get('/signup', userController.getSignup);
 app.post('/signup', userController.postSignup);
 app.get('/contact', contactController.getContact);
 app.post('/contact', contactController.postContact);
+
+app.post('/shopify', async (req, res) => {
+	let hmac = req.get('X-Shopify-Hmac-Sha256');
+	let topic = req.get('X-Shopify-Topic');
+	let shopDomain = req.get('X-Shopify-Shop-Domain');
+
+	if (shopDomain != process.env.SHOPIFY_SHOP_DOMAIN) {
+		res.sendStatus(401);
+		console.log('Error: Could not validate domain in the request');
+		return;
+	}
+	if (topic != 'customers/create') {
+		res.sendStatus(401);
+		console.log(
+			'Error: Could not validate the topic. Expected customers/create'
+		);
+		return;
+	}
+
+	console.log(req.body);
+	let clientId = req.body.id;
+	// verifica se o usuário está cadastrado no banco de dados Caso não esteja faz um request para a API do shopify pedindo informações sobre ele
+	console.log(topic);
+
+	// await axios
+	// 	.get(
+	// 		'https://03666d14d153113c5f046f35e5f02bc4:efa8fcc9b6963db5db01985496c51aaf@store-fluxo.myshopify.com/admin/customers/388423548980.json'
+	// 	)
+	// 	.then(response => {
+	// 		console.log(response);
+	// 	});
+
+	axios
+		.get(
+			'https://03666d14d153113c5f046f35e5f02bc4:efa8fcc9b6963db5db01985496c51aaf@store-fluxo.myshopify.com/admin/orders/388423548980.json'
+		)
+		.then(response => {
+			console.log(response);
+		});
+
+	// Chamada para https://03666d14d153113c5f046f35e5f02bc4:efa8fcc9b6963db5db01985496c51aaf@store-fluxo.myshopify.com/admin/customers/388423548980.json
+	//   {
+	//     "customer": {
+	//         "id": 388423548980,
+	//         "email": "joao.jose@email.com",
+	//         "accepts_marketing": false,
+	//         "created_at": "2018-03-01T08:54:32-05:00",
+	//         "updated_at": "2018-03-01T11:05:54-05:00",
+	//         "first_name": "João",
+	//         "last_name": "José",
+	//         "orders_count": 3,
+	//         "state": "disabled",
+	//         "total_spent": "760.50",
+	//         "last_order_id": 323314188340,
+	//         "note": "Primeiro Costumer",
+	//         "verified_email": true,
+	//         "multipass_identifier": null,
+	//         "tax_exempt": false,
+	//         "phone": "+554133333333",
+	//         "tags": "",
+	//         "last_order_name": "#1003",
+	//         "addresses": [
+	//             {
+	//                 "id": 420140318772,
+	//                 "customer_id": 388423548980,
+	//                 "first_name": "João",
+	//                 "last_name": "José",
+	//                 "company": "Empresa 1",
+	//                 "address1": "Padre Anchieta ",
+	//                 "address2": "2",
+	//                 "city": "Curitiba",
+	//                 "province": "Paraná",
+	//                 "country": "Brazil",
+	//                 "zip": "",
+	//                 "phone": "3434-3434",
+	//                 "name": "João José",
+	//                 "province_code": "PR",
+	//                 "country_code": "BR",
+	//                 "country_name": "Brazil",
+	//                 "default": true
+	//             }
+	//         ],
+	//         "default_address": {
+	//             "id": 420140318772,
+	//             "customer_id": 388423548980,
+	//             "first_name": "João",
+	//             "last_name": "José",
+	//             "company": "Empresa 1",
+	//             "address1": "Padre Anchieta ",
+	//             "address2": "2",
+	//             "city": "Curitiba",
+	//             "province": "Paraná",
+	//             "country": "Brazil",
+	//             "zip": "",
+	//             "phone": "3434-3434",
+	//             "name": "João José",
+	//             "province_code": "PR",
+	//             "country_code": "BR",
+	//             "country_name": "Brazil",
+	//             "default": true
+	//         }
+	//     }
+	// }
+	// Adicionar verificação do HMAC (de sergurança para ver se o servidor que envia é o do shopify)
+
+	res.sendStatus(200);
+});
+
 app.get('/account', passportConfig.isAuthenticated, userController.getAccount);
 app.post(
 	'/account/profile',
@@ -173,89 +289,22 @@ app.get(
 app.get('/api/stripe', apiController.getStripe);
 app.post('/api/stripe', apiController.postStripe);
 app.get('/api/scraping', apiController.getScraping);
-app.get('/api/twilio', apiController.getTwilio);
-app.post('/api/twilio', apiController.postTwilio);
-app.get('/api/clockwork', apiController.getClockwork);
-app.post('/api/clockwork', apiController.postClockwork);
-app.get(
-	'/api/foursquare',
-	passportConfig.isAuthenticated,
-	passportConfig.isAuthorized,
-	apiController.getFoursquare
-);
-app.get(
-	'/api/tumblr',
-	passportConfig.isAuthenticated,
-	passportConfig.isAuthorized,
-	apiController.getTumblr
-);
 app.get(
 	'/api/facebook',
 	passportConfig.isAuthenticated,
 	passportConfig.isAuthorized,
 	apiController.getFacebook
 );
-app.get(
-	'/api/github',
-	passportConfig.isAuthenticated,
-	passportConfig.isAuthorized,
-	apiController.getGithub
-);
-app.get(
-	'/api/twitter',
-	passportConfig.isAuthenticated,
-	passportConfig.isAuthorized,
-	apiController.getTwitter
-);
-app.post(
-	'/api/twitter',
-	passportConfig.isAuthenticated,
-	passportConfig.isAuthorized,
-	apiController.postTwitter
-);
-app.get(
-	'/api/linkedin',
-	passportConfig.isAuthenticated,
-	passportConfig.isAuthorized,
-	apiController.getLinkedin
-);
-app.get(
-	'/api/instagram',
-	passportConfig.isAuthenticated,
-	passportConfig.isAuthorized,
-	apiController.getInstagram
-);
 app.get('/api/paypal', apiController.getPayPal);
 app.get('/api/paypal/success', apiController.getPayPalSuccess);
 app.get('/api/paypal/cancel', apiController.getPayPalCancel);
-app.get('/api/lob', apiController.getLob);
 app.get('/api/upload', apiController.getFileUpload);
 app.post('/api/upload', upload.single('myFile'), apiController.postFileUpload);
-app.get(
-	'/api/pinterest',
-	passportConfig.isAuthenticated,
-	passportConfig.isAuthorized,
-	apiController.getPinterest
-);
-app.post(
-	'/api/pinterest',
-	passportConfig.isAuthenticated,
-	passportConfig.isAuthorized,
-	apiController.postPinterest
-);
 app.get('/api/google-maps', apiController.getGoogleMaps);
 
 /**
  * OAuth authentication routes. (Sign in)
  */
-app.get('/auth/instagram', passport.authenticate('instagram'));
-app.get(
-	'/auth/instagram/callback',
-	passport.authenticate('instagram', { failureRedirect: '/login' }),
-	(req, res) => {
-		res.redirect(req.session.returnTo || '/');
-	}
-);
 app.get(
 	'/auth/facebook',
 	passport.authenticate('facebook', { scope: ['email', 'public_profile'] })
@@ -263,14 +312,6 @@ app.get(
 app.get(
 	'/auth/facebook/callback',
 	passport.authenticate('facebook', { failureRedirect: '/login' }),
-	(req, res) => {
-		res.redirect(req.session.returnTo || '/');
-	}
-);
-app.get('/auth/github', passport.authenticate('github'));
-app.get(
-	'/auth/github/callback',
-	passport.authenticate('github', { failureRedirect: '/login' }),
 	(req, res) => {
 		res.redirect(req.session.returnTo || '/');
 	}
@@ -284,64 +325,6 @@ app.get(
 	passport.authenticate('google', { failureRedirect: '/login' }),
 	(req, res) => {
 		res.redirect(req.session.returnTo || '/');
-	}
-);
-app.get('/auth/twitter', passport.authenticate('twitter'));
-app.get(
-	'/auth/twitter/callback',
-	passport.authenticate('twitter', { failureRedirect: '/login' }),
-	(req, res) => {
-		res.redirect(req.session.returnTo || '/');
-	}
-);
-app.get(
-	'/auth/linkedin',
-	passport.authenticate('linkedin', { state: 'SOME STATE' })
-);
-app.get(
-	'/auth/linkedin/callback',
-	passport.authenticate('linkedin', { failureRedirect: '/login' }),
-	(req, res) => {
-		res.redirect(req.session.returnTo || '/');
-	}
-);
-
-/**
- * OAuth authorization routes. (API examples)
- */
-app.get('/auth/foursquare', passport.authorize('foursquare'));
-app.get(
-	'/auth/foursquare/callback',
-	passport.authorize('foursquare', { failureRedirect: '/api' }),
-	(req, res) => {
-		res.redirect('/api/foursquare');
-	}
-);
-app.get('/auth/tumblr', passport.authorize('tumblr'));
-app.get(
-	'/auth/tumblr/callback',
-	passport.authorize('tumblr', { failureRedirect: '/api' }),
-	(req, res) => {
-		res.redirect('/api/tumblr');
-	}
-);
-app.get('/auth/steam', passport.authorize('openid', { state: 'SOME STATE' }));
-app.get(
-	'/auth/steam/callback',
-	passport.authorize('openid', { failureRedirect: '/login' }),
-	(req, res) => {
-		res.redirect(req.session.returnTo || '/');
-	}
-);
-app.get(
-	'/auth/pinterest',
-	passport.authorize('pinterest', { scope: 'read_public write_public' })
-);
-app.get(
-	'/auth/pinterest/callback',
-	passport.authorize('pinterest', { failureRedirect: '/login' }),
-	(req, res) => {
-		res.redirect('/api/pinterest');
 	}
 );
 
