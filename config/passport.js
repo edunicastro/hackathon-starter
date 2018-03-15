@@ -3,6 +3,7 @@ const request = require('request');
 const LocalStrategy = require('passport-local').Strategy;
 const FacebookStrategy = require('passport-facebook').Strategy;
 const GoogleStrategy = require('passport-google-oauth').OAuth2Strategy;
+const axios = require('axios');
 
 const User = require('../models/User');
 
@@ -78,6 +79,7 @@ passport.use(
 		(req, accessToken, refreshToken, profile, done) => {
 			if (req.user) {
 				User.findOne({ facebook: profile.id }, (err, existingUser) => {
+					// Procura o usuário no banco de dados pelo id do Facebook
 					if (err) {
 						return done(err);
 					}
@@ -179,6 +181,7 @@ passport.use(
 		(req, accessToken, refreshToken, profile, done) => {
 			if (req.user) {
 				User.findOne({ google: profile.id }, (err, existingUser) => {
+					// Procura o usuário no banco de dados pelo id do Google
 					if (err) {
 						return done(err);
 					}
@@ -248,6 +251,39 @@ passport.use(
 						}
 					);
 				});
+				console.log('E-mail Logado:');
+				var loggedEmail = profile.emails.filter(email => {
+					return email.type == 'account';
+				})[0].value;
+				console.log('\x1b[33m%s\x1b[0m', loggedEmail);
+				axios
+					.get(
+						'https://' +
+							process.env.SHOPIFY_APP_KEY +
+							':' +
+							process.env.SHOPIFY_APP_SECRET +
+							'@' +
+							process.env.SHOPIFY_SHOP_DOMAIN +
+							'/admin/customers/search.json?query=' +
+							loggedEmail
+					)
+					.then(function(response) {
+						if (response.data.state != 'enabled') {
+							console.log(
+								'Usuário tem conta no shopify, mas precisa ativá-la!'
+							);
+							// Manda mensagem para o usuário avisando que deve ativar a conta do Shopify
+						} else if (response.data.customers.length > 0) {
+							console.log('Usuário tem conta no shopify!');
+							// Cadastra o id do usuário no nosso banco de dados
+						} else {
+							console.log('Usuário não tem conta no shopify!');
+							// Redireciona para o shopify
+						}
+					})
+					.catch(function(error) {
+						console.log('Erro: '.error);
+					});
 			}
 		}
 	)
