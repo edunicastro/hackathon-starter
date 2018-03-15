@@ -268,7 +268,7 @@ passport.use(
 							loggedEmail
 					)
 					.then(function(response) {
-						if (response.data.state != 'enabled') {
+						if (response.data.customers[0].state != 'enabled') {
 							console.log(
 								'Usuário tem conta no shopify, mas precisa ativá-la!'
 							);
