@@ -43,7 +43,14 @@ block content
         button.btn.btn.btn-primary(type='submit')
           i.fa.fa-pencil
           | Update Profile
-
+          
+  .page-header
+    h3 License Information
+    if user.google
+      p.col-sm-offset-3 You can delete your account, but keep in mind this action is irreversible3.
+    else
+      p.col-sm-offset-3 You can delete your account, but keep in mind this action is irreversible2.
+    
   .page-header
     h3 Change Password
 

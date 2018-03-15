@@ -1,3 +1,4 @@
+const _ = require('lodash');
 const passport = require('passport');
 const request = require('request');
 const LocalStrategy = require('passport-local').Strategy;
@@ -179,6 +180,7 @@ passport.use(
 			passReqToCallback: true
 		},
 		(req, accessToken, refreshToken, profile, done) => {
+			// profile is the info provided by google in this case
 			if (req.user) {
 				User.findOne({ google: profile.id }, (err, existingUser) => {
 					// Procura o usuário no banco de dados pelo id do Google
@@ -251,39 +253,126 @@ passport.use(
 						}
 					);
 				});
-				console.log('E-mail Logado:');
-				var loggedEmail = profile.emails.filter(email => {
-					return email.type == 'account';
-				})[0].value;
-				console.log('\x1b[33m%s\x1b[0m', loggedEmail);
-				axios
-					.get(
-						'https://' +
-							process.env.SHOPIFY_APP_KEY +
-							':' +
-							process.env.SHOPIFY_APP_SECRET +
-							'@' +
-							process.env.SHOPIFY_SHOP_DOMAIN +
-							'/admin/customers/search.json?query=' +
-							loggedEmail
-					)
-					.then(function(response) {
-						if (response.data.customers[0].state != 'enabled') {
-							console.log(
-								'Usuário tem conta no shopify, mas precisa ativá-la!'
+
+				var getsLoggedEmail = () => {
+					console.log('E-mail Logado:');
+					var loggedEmail = profile.emails.filter(email => {
+						return email.type == 'account';
+					})[0].value;
+					console.log('\x1b[33m%s\x1b[0m', loggedEmail);
+					return loggedEmail;
+				};
+				var loggedEmail = getsLoggedEmail();
+
+				var verifyShopifyEmail = loggedEmail => {
+					axios
+						.get(
+							'https://' +
+								process.env.SHOPIFY_APP_KEY +
+								':' +
+								process.env.SHOPIFY_APP_SECRET +
+								'@' +
+								process.env.SHOPIFY_SHOP_DOMAIN +
+								'/admin/customers/search.json?query=' +
+								loggedEmail
+						)
+						.then(function(response) {
+							if (response.data.customers[0].state != 'enabled') {
+								console.log(
+									'Usuário tem conta no shopify, mas precisa ativá-la!'
+								);
+								// Manda mensagem para o usuário avisando que deve ativar a conta do Shopify
+							} else if (response.data.customers.length > 0) {
+								console.log('Usuário tem conta no shopify!');
+								// Cadastra o id do shopify usuário no nosso banco de dados
+							} else {
+								console.log(
+									'Usuário não tem conta no shopify!'
+								);
+								// Redireciona para o shopify
+							}
+						})
+						.catch(function(error) {
+							console.log('Erro: '.error);
+						});
+				};
+				verifyShopifyEmail(loggedEmail);
+
+				var verifyMC3RLicense = loggedEmail => {
+					axios
+						.get(
+							'https://' +
+								process.env.SHOPIFY_APP_KEY +
+								':' +
+								process.env.SHOPIFY_APP_SECRET +
+								'@' +
+								process.env.SHOPIFY_SHOP_DOMAIN +
+								'/admin/orders.json?status=closed'
+						)
+						.then(function(response) {
+							// orders[].customer.email==loggedEmail,
+							// orders.financial_status=="paid",
+							// confirmed==true,
+							// updated_at: "2018-03-14T14:14:59-04:00",
+							// line_items:[
+							//   {
+							//     "title": "MC3R Pro",
+							//     "title": "MC3R Academic",
+							//     quantity: 1
+							//   }
+							// ]
+
+							//console.log('All Orders:');
+							//console.log(response.data.orders);
+							var filteredResponse = response.data.orders.filter(
+								order =>
+									order.customer.email == loggedEmail &&
+									order.financial_status == 'paid' &&
+									order.confirmed == true
 							);
-							// Manda mensagem para o usuário avisando que deve ativar a conta do Shopify
-						} else if (response.data.customers.length > 0) {
-							console.log('Usuário tem conta no shopify!');
-							// Cadastra o id do usuário no nosso banco de dados
-						} else {
-							console.log('Usuário não tem conta no shopify!');
-							// Redireciona para o shopify
-						}
-					})
-					.catch(function(error) {
-						console.log('Erro: '.error);
-					});
+							//console.log(filteredResponse);
+							if (filteredResponse.length > 0) {
+								console.log('Usuário tem ordens pagas MC3R');
+
+								var mostRecentDate = _.maxBy(
+									filteredResponse,
+									function(order) {
+										console.log(
+											order.updated_at.split('T')[0]
+										);
+										return order.updated_at;
+									}
+								);
+								console.log(mostRecentDate);
+								console.log(
+									'Data da compra: ' +
+										mostRecentDate.updated_at
+								);
+							} else {
+								console.log(
+									'Cliente não tem ordens pagas ou e-mail não confere'
+								);
+							}
+							/*
+  						if (response.data.email != 'enabled') {
+  							console.log(
+  								'Usuário tem conta no shopify, mas precisa ativá-la!'
+  							);
+  							// Manda mensagem para o usuário avisando que deve ativar a conta do Shopify
+  						} else if (response.data.customers.length > 0) {
+  							console.log('Usuário tem conta no shopify!');
+  							// Cadastra o id do shopify usuário no nosso banco de dados
+  						} else {
+  							console.log('Usuário não tem conta no shopify!');
+  							// Redireciona para o shopify
+  						}*/
+						})
+						.catch(function(error) {
+							console.log('Erro: '.error);
+						});
+				};
+
+				verifyMC3RLicense(loggedEmail);
 			}
 		}
 	)
