@@ -2,7 +2,7 @@ const bcrypt = require('bcrypt-nodejs');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
 
-const userSchema = new mongoose.Schema(
+const userSchema = new mongoose.Schema( // field _id is created automatically
 	{
 		email: { type: String, unique: true },
 		password: String,
@@ -21,7 +21,7 @@ const userSchema = new mongoose.Schema(
 			picture: String
 		}
 	},
-	{ timestamps: true }
+	{ timestamps: true } // This sets updatedAt and createdAt automatically
 );
 
 /**

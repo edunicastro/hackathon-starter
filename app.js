@@ -23,6 +23,8 @@ const sass = require('node-sass-middleware');
 const axios = require('axios');
 const multer = require('multer');
 const crypto = require('crypto');
+import React from 'react';
+import ReactDOM from 'react-dom';
 
 const upload = multer({ dest: path.join(__dirname, 'uploads') });
 
@@ -75,7 +77,7 @@ app.use(
 );
 app.use(logger('dev'));
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.urlencoded({ extended: true })); // This line is responsible for adding the form inputs into the request.body, so they are accessible after they're submitted
 app.use(expressValidator());
 app.use(
 	session({

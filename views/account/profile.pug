@@ -47,7 +47,9 @@ block content
   .page-header
     h3 License Information
     if user.google
-      p.col-sm-offset-3 You can delete your account, but keep in mind this action is irreversible3.
+      p.col-sm-offset-3 
+        each val, index in user
+          p
     else
       p.col-sm-offset-3 You can delete your account, but keep in mind this action is irreversible2.
     
