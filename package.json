@@ -19,8 +19,7 @@
 		"eslint": "eslint **/*.js",
 		"server": "nodemon app.js",
 		"client": "npm run start --prefix client",
-		"dev":
-			"concurrently \"npm run server & start http://localhost:5000\" \"npm run client\""
+		"dev": "concurrently \"npm run server\" \"npm run client\""
 	},
 	"dependencies": {
 		"axios": "^0.18.0",
