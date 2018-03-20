@@ -23,8 +23,6 @@ const sass = require('node-sass-middleware');
 const axios = require('axios');
 const multer = require('multer');
 const crypto = require('crypto');
-import React from 'react';
-import ReactDOM from 'react-dom';
 
 const upload = multer({ dest: path.join(__dirname, 'uploads') });
 
