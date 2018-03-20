@@ -106,6 +106,8 @@
 			"mocha": true,
 			"node": true
 		},
-		"plugins": ["chai-friendly"]
+		"plugins": [
+			"chai-friendly"
+		]
 	}
 }
