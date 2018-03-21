@@ -92,7 +92,6 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(flash());
-
 var csrfExclude = ['/shopify'];
 app.use((req, res, next) => {
 	if (_.includes(csrfExclude, req.path)) return next();
@@ -143,6 +142,7 @@ app.get('/signup', userController.getSignup);
 app.post('/signup', userController.postSignup);
 app.get('/contact', contactController.getContact);
 app.post('/contact', contactController.postContact);
+app.get('/api/current_user', userController.getUser);
 
 app.post('/shopify', async (req, res) => {
 	let hmac = req.get('X-Shopify-Hmac-Sha256');
@@ -167,14 +167,6 @@ app.post('/shopify', async (req, res) => {
 	// verifica se o usuário está cadastrado no banco de dados Caso não esteja faz um request para a API do shopify pedindo informações sobre ele
 	console.log(topic);
 
-	// await axios
-	// 	.get(
-	// 		'https://03666d14d153113c5f046f35e5f02bc4:efa8fcc9b6963db5db01985496c51aaf@store-fluxo.myshopify.com/admin/customers/388423548980.json'
-	// 	)
-	// 	.then(response => {
-	// 		console.log(response);
-	// 	});
-
 	axios
 		.get(
 			'https://03666d14d153113c5f046f35e5f02bc4:efa8fcc9b6963db5db01985496c51aaf@store-fluxo.myshopify.com/admin/orders/388423548980.json'
@@ -182,71 +174,6 @@ app.post('/shopify', async (req, res) => {
 		.then(response => {
 			console.log(response);
 		});
-
-	// Chamada para https://03666d14d153113c5f046f35e5f02bc4:efa8fcc9b6963db5db01985496c51aaf@store-fluxo.myshopify.com/admin/customers/388423548980.json
-	//   {
-	//     "customer": {
-	//         "id": 388423548980,
-	//         "email": "joao.jose@email.com",
-	//         "accepts_marketing": false,
-	//         "created_at": "2018-03-01T08:54:32-05:00",
-	//         "updated_at": "2018-03-01T11:05:54-05:00",
-	//         "first_name": "João",
-	//         "last_name": "José",
-	//         "orders_count": 3,
-	//         "state": "disabled",
-	//         "total_spent": "760.50",
-	//         "last_order_id": 323314188340,
-	//         "note": "Primeiro Costumer",
-	//         "verified_email": true,
-	//         "multipass_identifier": null,
-	//         "tax_exempt": false,
-	//         "phone": "+554133333333",
-	//         "tags": "",
-	//         "last_order_name": "#1003",
-	//         "addresses": [
-	//             {
-	//                 "id": 420140318772,
-	//                 "customer_id": 388423548980,
-	//                 "first_name": "João",
-	//                 "last_name": "José",
-	//                 "company": "Empresa 1",
-	//                 "address1": "Padre Anchieta ",
-	//                 "address2": "2",
-	//                 "city": "Curitiba",
-	//                 "province": "Paraná",
-	//                 "country": "Brazil",
-	//                 "zip": "",
-	//                 "phone": "3434-3434",
-	//                 "name": "João José",
-	//                 "province_code": "PR",
-	//                 "country_code": "BR",
-	//                 "country_name": "Brazil",
-	//                 "default": true
-	//             }
-	//         ],
-	//         "default_address": {
-	//             "id": 420140318772,
-	//             "customer_id": 388423548980,
-	//             "first_name": "João",
-	//             "last_name": "José",
-	//             "company": "Empresa 1",
-	//             "address1": "Padre Anchieta ",
-	//             "address2": "2",
-	//             "city": "Curitiba",
-	//             "province": "Paraná",
-	//             "country": "Brazil",
-	//             "zip": "",
-	//             "phone": "3434-3434",
-	//             "name": "João José",
-	//             "province_code": "PR",
-	//             "country_code": "BR",
-	//             "country_name": "Brazil",
-	//             "default": true
-	//         }
-	//     }
-	// }
-	// Adicionar verificação do HMAC (de sergurança para ver se o servidor que envia é o do shopify)
 
 	res.sendStatus(200);
 });

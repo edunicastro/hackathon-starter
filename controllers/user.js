@@ -4,6 +4,10 @@ const nodemailer = require('nodemailer');
 const passport = require('passport');
 const User = require('../models/User');
 
+exports.getUser = (req, res) => {
+	res.send(req.user);
+};
+
 /**
  * GET /login
  * Login page.
